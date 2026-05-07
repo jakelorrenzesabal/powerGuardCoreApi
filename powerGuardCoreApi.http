@@ -1,0 +1,6 @@
+@powerGuardCoreApi_HostAddress = http://localhost:5007
+
+GET {{powerGuardCoreApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
