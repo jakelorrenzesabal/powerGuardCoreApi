@@ -1,0 +1,10 @@
+name: PowerGuard Dev
+values:
+  - key: baseUrl
+    value: 'http://localhost:5000'
+    enabled: true
+    type: default
+  - key: token
+    value: ''
+    enabled: true
+    type: default

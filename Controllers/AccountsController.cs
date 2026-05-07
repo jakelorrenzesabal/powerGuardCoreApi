@@ -23,7 +23,7 @@ public class AccountsController : ControllerBase
         var browserInfo = Request.Headers["User-Agent"].ToString();
         var result = await _accountService.AuthenticateAsync(model, ipAddress, browserInfo);
         SetTokenCookie(result.RefreshToken);
-        return Ok(result.Account);
+        return Ok(result);
     }
 
     [HttpPost("refresh-token")]
@@ -33,7 +33,7 @@ public class AccountsController : ControllerBase
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
         var result = await _accountService.RefreshTokenAsync(token, ipAddress);
         SetTokenCookie(result.RefreshToken);
-        return Ok(result.Account);
+        return Ok(result);
     }
 
     [Authorize]
