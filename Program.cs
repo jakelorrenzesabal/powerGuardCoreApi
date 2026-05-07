@@ -40,7 +40,10 @@ builder.Services.AddAuthentication(opt =>
 // ── CORS ─────────────────────────────────────────────────────────────────────
 builder.Services.AddCors(opt =>
     opt.AddDefaultPolicy(policy =>
-        policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
+        policy.WithOrigins("http://localhost:4200")
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials()));
 
 // ── Services (DI) ─────────────────────────────────────────────────────────────
 builder.Services.AddScoped<IAccountService, AccountService>();
