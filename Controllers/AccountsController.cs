@@ -19,8 +19,8 @@ public class AccountsController : ControllerBase
     [HttpPost("authenticate")]
     public async Task<IActionResult> Authenticate([FromBody] AuthenticateRequest model)
     {
-        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
-        var browserInfo = Request.Headers["User-Agent"].ToString();
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty;
+        var browserInfo = Request.Headers["User-Agent"].ToString() ?? string.Empty;
         var result = await _accountService.AuthenticateAsync(model, ipAddress, browserInfo);
         SetTokenCookie(result.RefreshToken);
         return Ok(result);
@@ -29,8 +29,8 @@ public class AccountsController : ControllerBase
     [HttpPost("refresh-token")]
     public async Task<IActionResult> RefreshToken()
     {
-        var token = Request.Cookies["refreshToken"];
-        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var token = Request.Cookies["refreshToken"] ?? string.Empty;
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty;
         var result = await _accountService.RefreshTokenAsync(token, ipAddress);
         SetTokenCookie(result.RefreshToken);
         return Ok(result);
@@ -40,9 +40,9 @@ public class AccountsController : ControllerBase
     [HttpPost("revoke-token")]
     public async Task<IActionResult> RevokeToken([FromBody] RevokeTokenRequest model)
     {
-        var token = model.Token ?? Request.Cookies["refreshToken"];
-        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
-        var browserInfo = Request.Headers["User-Agent"].ToString();
+        var token = model.Token ?? Request.Cookies["refreshToken"] ?? string.Empty;
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty;
+        var browserInfo = Request.Headers["User-Agent"].ToString() ?? string.Empty;
         if (string.IsNullOrEmpty(token))
             return BadRequest(new { message = "Token is required" });
 
@@ -81,8 +81,8 @@ public class AccountsController : ControllerBase
     [HttpPost("reset-password")]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest model)
     {
-        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
-        var browserInfo = Request.Headers["User-Agent"].ToString();
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty;
+        var browserInfo = Request.Headers["User-Agent"].ToString() ?? string.Empty;
         await _accountService.ResetPasswordAsync(model, ipAddress, browserInfo);
         return Ok(new { message = "Password reset successful, you can now login" });
     }
@@ -125,8 +125,8 @@ public class AccountsController : ControllerBase
     [HttpPost("{AccountId}/rooms/{roomId}")]
     public async Task<IActionResult> AddRoomToAccount(int AccountId, int roomId)
     {
-        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
-        var browserInfo = Request.Headers["User-Agent"].ToString();
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty;
+        var browserInfo = Request.Headers["User-Agent"].ToString() ?? string.Empty;
         await _accountService.AddRoomToAccountAsync(AccountId, roomId, ipAddress, browserInfo);
         return Ok(new { message = "Room added to account successfully" });
     }
@@ -135,8 +135,8 @@ public class AccountsController : ControllerBase
     [HttpDelete("{AccountId}/rooms/{roomId}")]
     public async Task<IActionResult> RemoveRoomFromAccount(int AccountId, int roomId)
     {
-        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
-        var browserInfo = Request.Headers["User-Agent"].ToString();
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty;
+        var browserInfo = Request.Headers["User-Agent"].ToString() ?? string.Empty;
         await _accountService.RemoveRoomFromAccountAsync(AccountId, roomId, ipAddress, browserInfo);
         return Ok(new { message = "Room removed from account successfully" });
     }
@@ -188,8 +188,8 @@ public class AccountsController : ControllerBase
     public async Task<IActionResult> Create([FromBody] CreateAccountRequest model)
     {
         var adminId = int.Parse(User.FindFirst("AccountId")?.Value ?? "0");
-        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
-        var browserInfo = Request.Headers["User-Agent"].ToString();
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty;
+        var browserInfo = Request.Headers["User-Agent"].ToString() ?? string.Empty;
         var account = await _accountService.CreateAsync(model, adminId, ipAddress, browserInfo);
         return Ok(account);
     }
@@ -199,9 +199,9 @@ public class AccountsController : ControllerBase
     public async Task<IActionResult> Update(int AccountId, [FromBody] UpdateAccountRequest model)
     {
         // Add role/user check as needed
-        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
-        var browserInfo = Request.Headers["User-Agent"].ToString();
-        var userRole = User.FindFirst("role")?.Value;
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty;
+        var browserInfo = Request.Headers["User-Agent"].ToString() ?? string.Empty;
+        var userRole = User.FindFirst("role")?.Value ?? string.Empty;
         var userId = int.Parse(User.FindFirst("AccountId")?.Value ?? "0");
         var account = await _accountService.UpdateAsync(AccountId, model, ipAddress, browserInfo, userRole, userId);
         return Ok(new { success = true, message = "Account updated successfully", account });
@@ -212,9 +212,9 @@ public class AccountsController : ControllerBase
     public async Task<IActionResult> Delete(int AccountId)
     {
         // Add role/user check as needed
-        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
-        var browserInfo = Request.Headers["User-Agent"].ToString();
-        var userRole = User.FindFirst("role")?.Value;
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty;
+        var browserInfo = Request.Headers["User-Agent"].ToString() ?? string.Empty;
+        var userRole = User.FindFirst("role")?.Value ?? string.Empty;
         var userId = int.Parse(User.FindFirst("AccountId")?.Value ?? "0");
         await _accountService.DeleteAsync(AccountId, ipAddress, browserInfo, userRole, userId);
         return Ok(new { message = "Account deleted successfully" });
@@ -222,6 +222,9 @@ public class AccountsController : ControllerBase
 
     private void SetTokenCookie(string token)
     {
+        if (string.IsNullOrEmpty(token))
+            return;
+
         var cookieOptions = new CookieOptions
         {
             HttpOnly = true,
