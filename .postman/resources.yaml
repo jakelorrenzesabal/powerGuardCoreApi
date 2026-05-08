@@ -1,0 +1,7 @@
+# Use this workspace to collaborate
+workspace:
+  id: 0553f0f7-4e6f-4032-8323-59c9d8d1d5e5
+
+localResources:
+  specs:
+    - ..\obj\Debug\net8.0\EndpointInfo\powerGuardCoreApi.json

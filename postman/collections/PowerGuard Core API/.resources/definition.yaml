@@ -1,0 +1,3 @@
+$kind: collection
+name: PowerGuard Core API
+description: Full API collection for PowerGuard Core - covers Accounts, Rooms, and Arduino Log endpoints.

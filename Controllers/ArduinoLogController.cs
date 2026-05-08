@@ -64,7 +64,7 @@ namespace PowerGuardCoreApi.Controllers
                 filters.AccountId = int.Parse(User.FindFirst("AccountId")?.Value ?? "0");
             }
             var result = await _arduinoLogService.GetLogCountsAsync(filters);
-            return Ok(new { success = true, result.Total, result.ByEventType });
+            return Ok(new { success = true, result.Total, result.ByEventType, logs = result.Logs, attemptCounts = result.AttemptCounts });
         }
 
         // GET /api/arduino/log/validation-attempts

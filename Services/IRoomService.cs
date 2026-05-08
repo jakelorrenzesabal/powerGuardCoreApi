@@ -15,7 +15,7 @@ namespace PowerGuardCoreApi.Services
         Task<Room?> GetRoomByIdAsync(int id);
         Task<Room> UpdateRoomAsync(int id, UpdateRoomRequest request, int accountId);
         Task<Room> UpdateRoomStatusAsync(int id, bool isActive, int accountId);
-        Task<Room> TogglePowerStatusAsync(int id, string status, int accountId);
+        Task<Room> TogglePowerStatusAsync(int id, string status, int accountId, bool isAdmin = false);
         Task<PowerStatusDto> GetPowerStatusByDeviceIdAsync(string deviceId);
         Task<IEnumerable<DeviceStatusDto>> GetDeviceActivityStatusAsync();
         Task<object> GetRoomsByPowerStatusAsync(string status, int? accountId);
@@ -47,9 +47,13 @@ namespace PowerGuardCoreApi.Services
             var plain = _deviceKeyHelper.GenerateDeviceKey();
             var room = new Room
             {
-                RoomName = request.RoomName, RoomNumber = request.RoomNumber,
-                Floor = request.Floor, Building = request.Building, DeviceId = request.DeviceId,
-                IsActive = true, PowerStatus = "off",
+                RoomName = request.RoomName,
+                RoomNumber = request.RoomNumber,
+                Floor = request.Floor,
+                Building = request.Building,
+                DeviceId = request.DeviceId,
+                IsActive = true,
+                PowerStatus = "off",
                 DeviceKeyEncrypted = _deviceKeyHelper.EncryptDeviceKey(plain),
                 DeviceKeyHash = _deviceKeyHelper.BcryptHash(plain),
                 DeviceKeyCreatedAt = DateTime.UtcNow
@@ -77,8 +81,12 @@ namespace PowerGuardCoreApi.Services
             var count = await _db.Rooms.CountAsync();
 
             var dtos = new List<RoomDto>();
+            bool changed = false;
+
             foreach (var room in rooms)
             {
+                if (CheckHeartbeat(room)) changed = true;
+
                 var dto = new RoomDto(room);
 
                 var lastLog = await _db.ArduinoLogs
@@ -117,6 +125,8 @@ namespace PowerGuardCoreApi.Services
                 dto.UserCount = await _db.Accounts.CountAsync(a => a.Rooms.Any(r => r.RoomId == room.RoomId));
                 dtos.Add(dto);
             }
+
+            if (changed) await _db.SaveChangesAsync();
 
             return (dtos, count);
         }
@@ -172,7 +182,7 @@ namespace PowerGuardCoreApi.Services
             return room;
         }
 
-        public async Task<Room> TogglePowerStatusAsync(int id, string status, int accountId)
+        public async Task<Room> TogglePowerStatusAsync(int id, string status, int accountId, bool isAdmin = false)
         {
             if (status != "on" && status != "off")
                 throw new Exception("Invalid status. Use \"on\" or \"off\".");
@@ -180,12 +190,35 @@ namespace PowerGuardCoreApi.Services
             var room = await GetRoomByIdAsync(id) ?? throw new Exception("Room not found");
 
             if (!room.IsActive && status == "on")
-                throw new RoomInactiveException($"Cannot turn ON power for inactive room \"{room.RoomName}\". Please activate the room first.");
+            {
+                if (isAdmin)
+                {
+                    room.IsActive = true;
+                    room.InactiveSince = null;
+                    room.LastActiveAt = DateTime.UtcNow;
+                }
+                else
+                {
+                    throw new RoomInactiveException($"Cannot turn ON power for inactive room \"{room.RoomName}\". Please activate the room first.");
+                }
+            }
 
             if (room.PowerStatus == status) return room;
 
             room.PowerStatus = status;
             room.UpdatedAt = DateTime.UtcNow;
+
+            // Log the power toggle event to ArduinoLogs
+            _db.ArduinoLogs.Add(new ArduinoLog
+            {
+                RoomId = room.RoomId,
+                AccountId = accountId,
+                Event = status == "on" ? "power_on" : "power_off",
+                CardUID = "ADMIN",
+                Details = $"Power turned {status.ToUpper()} by admin (AccountId: {accountId}).",
+                Timestamp = DateTime.UtcNow
+            });
+
             await _db.SaveChangesAsync();
             return room;
         }
@@ -195,14 +228,25 @@ namespace PowerGuardCoreApi.Services
             var room = await _db.Rooms.FirstOrDefaultAsync(r => r.DeviceId == deviceId)
                 ?? throw new Exception("Room not found");
 
+            // Always update LastActiveAt when device checks in
+            room.LastActiveAt = DateTime.UtcNow;
+            room.UpdatedAt = DateTime.UtcNow;
+
             if (!room.IsActive)
             {
                 room.IsActive = true;
-                room.LastActiveAt = DateTime.UtcNow;
                 room.InactiveSince = null;
-                room.UpdatedAt = DateTime.UtcNow;
-                await _db.SaveChangesAsync();
+
+                _db.ArduinoLogs.Add(new ArduinoLog
+                {
+                    RoomId = room.RoomId,
+                    Event = "room_activated",
+                    CardUID = "SYSTEM",
+                    Details = "Device detected. Room reactivated automatically.",
+                    Timestamp = DateTime.UtcNow
+                });
             }
+            await _db.SaveChangesAsync();
 
             return new PowerStatusDto { PowerStatus = room.PowerStatus, RoomId = room.RoomId, RoomName = room.RoomName };
         }
@@ -210,11 +254,49 @@ namespace PowerGuardCoreApi.Services
         public async Task<IEnumerable<DeviceStatusDto>> GetDeviceActivityStatusAsync()
         {
             var rooms = await _db.Rooms.Where(r => r.DeviceId != null).ToListAsync();
-            return rooms.Select(r => new DeviceStatusDto
+            bool changed = false;
+            var result = rooms.Select(r =>
             {
-                RoomId = r.RoomId, RoomName = r.RoomName, DeviceId = r.DeviceId,
-                IsActive = r.IsActive, IsOnline = false, LastSeen = null
-            });
+                if (CheckHeartbeat(r)) changed = true;
+                return new DeviceStatusDto
+                {
+                    RoomId = r.RoomId,
+                    RoomName = r.RoomName,
+                    DeviceId = r.DeviceId,
+                    IsActive = r.IsActive,
+                    LastSeen = r.LastActiveAt?.ToString("yyyy-MM-dd HH:mm:ss")
+                };
+            }).ToList();
+
+            if (changed) await _db.SaveChangesAsync();
+            return result;
+        }
+
+        private bool CheckHeartbeat(Room room)
+        {
+            // Auto-deactivation logic: If Active but not seen for 5 seconds (or never seen), set IsActive = false
+            bool isDeviceFound = room.LastActiveAt.HasValue && room.LastActiveAt.Value > DateTime.UtcNow.AddSeconds(-5);
+
+            if (room.IsActive && !isDeviceFound)
+            {
+                room.IsActive = false;
+                room.InactiveSince = DateTime.UtcNow;
+                room.PowerStatus = "off"; // Turn off power if device is lost or never found
+
+                _db.ArduinoLogs.Add(new ArduinoLog
+                {
+                    RoomId = room.RoomId,
+                    Event = "power_off",
+                    CardUID = "SYSTEM",
+                    Details = room.LastActiveAt.HasValue
+                        ? "Device heartbeat lost. Room deactivated automatically."
+                        : "No device detected. Room deactivated automatically.",
+                    Timestamp = DateTime.UtcNow
+                });
+
+                return true;
+            }
+            return false;
         }
 
         public async Task<object> GetRoomsByPowerStatusAsync(string status, int? accountId)

@@ -61,10 +61,10 @@ namespace PowerGuardCoreApi.Services
                 .FirstOrDefaultAsync(x => x.Email == request.Email);
 
             if (account == null || !account.IsVerified || !BCrypt.Net.BCrypt.Verify(request.Password, account.PasswordHash))
-                throw new Exception("Email or password is incorrect");
+                throw new AppException("Email or password is incorrect");
 
             if (!account.IsActive)
-                throw new Exception("Account is deactivated");
+                throw new AppException("Account is deactivated");
 
             var jwtToken = GenerateJwtToken(account);
             var refreshToken = GenerateRefreshToken(account, ipAddress);
@@ -91,7 +91,7 @@ namespace PowerGuardCoreApi.Services
                 .FirstOrDefaultAsync(rt => rt.Token == token);
 
             if (refreshToken == null || !refreshToken.IsActive)
-                throw new Exception("Invalid token");
+                throw new AppException("Invalid token");
 
             var account = refreshToken.Account!;
 
@@ -120,7 +120,7 @@ namespace PowerGuardCoreApi.Services
                 .FirstOrDefaultAsync(rt => rt.Token == token);
 
             if (refreshToken == null || !refreshToken.IsActive)
-                throw new Exception("Invalid token");
+                throw new AppException("Invalid token");
 
             refreshToken.Revoked = DateTime.UtcNow;
             refreshToken.RevokedByIp = ipAddress;
@@ -134,10 +134,10 @@ namespace PowerGuardCoreApi.Services
         public async Task RegisterAsync(RegisterRequest request, string origin)
         {
             if (await _db.Accounts.AnyAsync(a => a.Email == request.Email))
-                throw new Exception($"Email '{request.Email}' is already registered");
+                throw new AppException($"Email '{request.Email}' is already registered");
 
             if (request.Password != request.ConfirmPassword)
-                throw new Exception("Passwords do not match");
+                throw new AppException("Passwords do not match");
 
             var account = new Account
             {
@@ -170,7 +170,7 @@ namespace PowerGuardCoreApi.Services
         public async Task VerifyEmailAsync(VerifyEmailRequest request)
         {
             var account = await _db.Accounts.FirstOrDefaultAsync(a => a.VerificationToken == request.Token);
-            if (account == null) throw new Exception("Verification failed");
+            if (account == null) throw new AppException("Verification failed");
 
             account.Verified = DateTime.UtcNow;
             account.VerificationToken = null;
@@ -197,7 +197,7 @@ namespace PowerGuardCoreApi.Services
         {
             var account = await _db.Accounts.FirstOrDefaultAsync(a =>
                 a.ResetToken == request.Token && a.ResetTokenExpires > DateTime.UtcNow);
-            if (account == null) throw new Exception("Invalid token");
+            if (account == null) throw new AppException("Invalid token");
         }
 
         // ─── Reset Password ──────────────────────────────────────────────────────
@@ -205,11 +205,11 @@ namespace PowerGuardCoreApi.Services
         public async Task ResetPasswordAsync(ResetPasswordRequest request, string ipAddress, string browserInfo)
         {
             if (request.Password != request.ConfirmPassword)
-                throw new Exception("Passwords do not match");
+                throw new AppException("Passwords do not match");
 
             var account = await _db.Accounts.FirstOrDefaultAsync(a =>
                 a.ResetToken == request.Token && a.ResetTokenExpires > DateTime.UtcNow);
-            if (account == null) throw new Exception("Invalid token");
+            if (account == null) throw new AppException("Invalid token");
 
             account.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
             account.PasswordReset = DateTime.UtcNow;
@@ -225,23 +225,31 @@ namespace PowerGuardCoreApi.Services
 
         public async Task<IEnumerable<AccountDto>> GetAllAsync(string search, bool? isActive)
         {
-            var query = _db.Accounts.Include(a => a.Rooms).AsQueryable();
-
-            if (isActive.HasValue)
-                query = query.Where(a => a.IsActive == isActive.Value);
-
-            if (!string.IsNullOrEmpty(search))
+            try
             {
-                query = query.Where(a =>
-                    a.FirstName.Contains(search) ||
-                    a.LastName.Contains(search) ||
-                    a.Email.Contains(search) ||
-                    (a.Uid != null && a.Uid.Contains(search)) ||
-                    a.PhoneNumber.Contains(search));
-            }
+                var query = _db.Accounts.Include(a => a.Rooms).AsQueryable();
 
-            var accounts = await query.ToListAsync();
-            return accounts.Select(MapToDto);
+                if (isActive.HasValue)
+                    query = query.Where(a => a.IsActive == isActive.Value);
+
+                if (!string.IsNullOrEmpty(search))
+                {
+                    query = query.Where(a =>
+                        a.FirstName.Contains(search) ||
+                        a.LastName.Contains(search) ||
+                        a.Email.Contains(search) ||
+                        (a.Uid != null && a.Uid.Contains(search)) ||
+                        a.PhoneNumber.Contains(search));
+                }
+
+                var accounts = await query.ToListAsync();
+                return accounts.Select(MapToDto);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in GetAllAsync: {ex.Message}");
+                throw;
+            }
         }
 
         // ─── Get By Id ───────────────────────────────────────────────────────────
@@ -252,7 +260,7 @@ namespace PowerGuardCoreApi.Services
                 .Include(a => a.Rooms)
                 .FirstOrDefaultAsync(a => a.AccountId == accountId);
 
-            if (account == null) throw new Exception("Account not found");
+            if (account == null) throw new AppException("Account not found");
             return MapToDto(account);
         }
 
@@ -261,10 +269,10 @@ namespace PowerGuardCoreApi.Services
         public async Task<AccountDto> CreateAsync(CreateAccountRequest request, int createdByAccountId, string ipAddress, string browserInfo)
         {
             if (await _db.Accounts.AnyAsync(a => a.Email == request.Email))
-                throw new Exception($"Email '{request.Email}' is already registered");
+                throw new AppException($"Email '{request.Email}' is already registered");
 
             if (request.Password != request.ConfirmPassword)
-                throw new Exception("Passwords do not match");
+                throw new AppException("Passwords do not match");
 
             var account = new Account
             {
@@ -300,14 +308,14 @@ namespace PowerGuardCoreApi.Services
         {
             var account = await _db.Accounts.Include(a => a.Rooms)
                 .FirstOrDefaultAsync(a => a.AccountId == accountId);
-            if (account == null) throw new Exception("Account not found");
+            if (account == null) throw new AppException("Account not found");
 
             if (request.Email != null && request.Email != account.Email &&
                 await _db.Accounts.AnyAsync(a => a.Email == request.Email))
-                throw new Exception($"Email '{request.Email}' is already taken");
+                throw new AppException($"Email '{request.Email}' is already taken");
 
             if (request.Password != null && request.Password != request.ConfirmPassword)
-                throw new Exception("Passwords do not match");
+                throw new AppException("Passwords do not match");
 
             if (request.Title != null) account.Title = request.Title;
             if (request.FirstName != null) account.FirstName = request.FirstName;
@@ -335,7 +343,7 @@ namespace PowerGuardCoreApi.Services
         public async Task DeleteAsync(int accountId, string ipAddress, string browserInfo, string requesterRole, int requesterId)
         {
             var account = await _db.Accounts.FindAsync(accountId);
-            if (account == null) throw new Exception("Account not found");
+            if (account == null) throw new AppException("Account not found");
 
             account.IsActive = false;
             account.Updated = DateTime.UtcNow;
@@ -403,10 +411,10 @@ namespace PowerGuardCoreApi.Services
         {
             var account = await _db.Accounts.Include(a => a.Rooms)
                 .FirstOrDefaultAsync(a => a.AccountId == accountId);
-            if (account == null) throw new Exception("Account not found");
+            if (account == null) throw new AppException("Account not found");
 
             var room = await _db.Rooms.FindAsync(roomId);
-            if (room == null) throw new Exception("Room not found");
+            if (room == null) throw new AppException("Room not found");
 
             if (!account.Rooms.Any(r => r.RoomId == roomId))
             {
@@ -422,7 +430,7 @@ namespace PowerGuardCoreApi.Services
         {
             var account = await _db.Accounts.Include(a => a.Rooms)
                 .FirstOrDefaultAsync(a => a.AccountId == accountId);
-            if (account == null) throw new Exception("Account not found");
+            if (account == null) throw new AppException("Account not found");
 
             var room = account.Rooms.FirstOrDefault(r => r.RoomId == roomId);
             if (room != null)

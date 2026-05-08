@@ -40,7 +40,10 @@ builder.Services.AddAuthentication(opt =>
 // ── CORS ─────────────────────────────────────────────────────────────────────
 builder.Services.AddCors(opt =>
     opt.AddDefaultPolicy(policy =>
-        policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
+        policy.WithOrigins("http://localhost:4200")
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials()));
 
 // ── Services (DI) ─────────────────────────────────────────────────────────────
 builder.Services.AddScoped<IAccountService, AccountService>();
@@ -50,7 +53,8 @@ builder.Services.AddScoped<IDeviceKeyHelper, DeviceKeyHelper>();
 builder.Services.AddScoped<IEmailSender, EmailSender>();
 
 // ── Controllers ───────────────────────────────────────────────────────────────
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(x => x.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles);
 builder.Services.AddEndpointsApiExplorer();
 
 // ── Swagger with JWT support ──────────────────────────────────────────────────

@@ -32,6 +32,7 @@ namespace PowerGuardCoreApi._middleware
                 context.Response.ContentType = "application/json";
                 context.Response.StatusCode = err switch
                 {
+                    AppException => (int)HttpStatusCode.BadRequest,
                     RoomInactiveException => (int)HttpStatusCode.BadRequest,
                     DeviceOfflineException => (int)HttpStatusCode.ServiceUnavailable,
                     UnauthorizedAccessException => (int)HttpStatusCode.Unauthorized,
