@@ -15,7 +15,7 @@ namespace PowerGuardCoreApi.Services
         Task<Room?> GetRoomByIdAsync(int id);
         Task<Room> UpdateRoomAsync(int id, UpdateRoomRequest request, int accountId);
         Task<Room> UpdateRoomStatusAsync(int id, bool isActive, int accountId);
-        Task<Room> TogglePowerStatusAsync(int id, string status, int accountId);
+        Task<Room> TogglePowerStatusAsync(int id, string status, int accountId, bool isAdmin = false);
         Task<PowerStatusDto> GetPowerStatusByDeviceIdAsync(string deviceId);
         Task<IEnumerable<DeviceStatusDto>> GetDeviceActivityStatusAsync();
         Task<object> GetRoomsByPowerStatusAsync(string status, int? accountId);
@@ -182,7 +182,7 @@ namespace PowerGuardCoreApi.Services
             return room;
         }
 
-        public async Task<Room> TogglePowerStatusAsync(int id, string status, int accountId)
+        public async Task<Room> TogglePowerStatusAsync(int id, string status, int accountId, bool isAdmin = false)
         {
             if (status != "on" && status != "off")
                 throw new Exception("Invalid status. Use \"on\" or \"off\".");
@@ -190,12 +190,35 @@ namespace PowerGuardCoreApi.Services
             var room = await GetRoomByIdAsync(id) ?? throw new Exception("Room not found");
 
             if (!room.IsActive && status == "on")
-                throw new RoomInactiveException($"Cannot turn ON power for inactive room \"{room.RoomName}\". Please activate the room first.");
+            {
+                if (isAdmin)
+                {
+                    room.IsActive = true;
+                    room.InactiveSince = null;
+                    room.LastActiveAt = DateTime.UtcNow;
+                }
+                else
+                {
+                    throw new RoomInactiveException($"Cannot turn ON power for inactive room \"{room.RoomName}\". Please activate the room first.");
+                }
+            }
 
             if (room.PowerStatus == status) return room;
 
             room.PowerStatus = status;
             room.UpdatedAt = DateTime.UtcNow;
+
+            // Log the power toggle event to ArduinoLogs
+            _db.ArduinoLogs.Add(new ArduinoLog
+            {
+                RoomId = room.RoomId,
+                AccountId = accountId,
+                Event = status == "on" ? "power_on" : "power_off",
+                CardUID = "ADMIN",
+                Details = $"Power turned {status.ToUpper()} by admin (AccountId: {accountId}).",
+                Timestamp = DateTime.UtcNow
+            });
+
             await _db.SaveChangesAsync();
             return room;
         }

@@ -115,9 +115,9 @@ public class AccountsController : ControllerBase
 
     [Authorize(Roles = UserRoles.Admin)]
     [HttpGet("unassigned/{roomId}")]
-    public async Task<IActionResult> GetUnassignedAccounts(int roomId, [FromQuery] string search)
+    public async Task<IActionResult> GetUnassignedAccounts(int roomId, [FromQuery] string? search = null)
     {
-        var accounts = await _accountService.GetUnassignedAccountsAsync(roomId, search);
+        var accounts = await _accountService.GetUnassignedAccountsAsync(roomId, search ?? "");
         return Ok(accounts);
     }
 
