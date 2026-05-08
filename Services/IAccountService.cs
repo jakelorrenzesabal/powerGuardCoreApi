@@ -225,23 +225,31 @@ namespace PowerGuardCoreApi.Services
 
         public async Task<IEnumerable<AccountDto>> GetAllAsync(string search, bool? isActive)
         {
-            var query = _db.Accounts.Include(a => a.Rooms).AsQueryable();
-
-            if (isActive.HasValue)
-                query = query.Where(a => a.IsActive == isActive.Value);
-
-            if (!string.IsNullOrEmpty(search))
+            try
             {
-                query = query.Where(a =>
-                    a.FirstName.Contains(search) ||
-                    a.LastName.Contains(search) ||
-                    a.Email.Contains(search) ||
-                    (a.Uid != null && a.Uid.Contains(search)) ||
-                    a.PhoneNumber.Contains(search));
-            }
+                var query = _db.Accounts.Include(a => a.Rooms).AsQueryable();
 
-            var accounts = await query.ToListAsync();
-            return accounts.Select(MapToDto);
+                if (isActive.HasValue)
+                    query = query.Where(a => a.IsActive == isActive.Value);
+
+                if (!string.IsNullOrEmpty(search))
+                {
+                    query = query.Where(a =>
+                        a.FirstName.Contains(search) ||
+                        a.LastName.Contains(search) ||
+                        a.Email.Contains(search) ||
+                        (a.Uid != null && a.Uid.Contains(search)) ||
+                        a.PhoneNumber.Contains(search));
+                }
+
+                var accounts = await query.ToListAsync();
+                return accounts.Select(MapToDto);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in GetAllAsync: {ex.Message}");
+                throw;
+            }
         }
 
         // ─── Get By Id ───────────────────────────────────────────────────────────

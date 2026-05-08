@@ -6,7 +6,7 @@ using PowerGuardCoreApi.Services;
 using System.Threading.Tasks;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/accounts")]
 public class AccountsController : ControllerBase
 {
     private readonly IAccountService _accountService;
@@ -143,9 +143,9 @@ public class AccountsController : ControllerBase
 
     [Authorize(Roles = UserRoles.Admin)]
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] string search, [FromQuery] bool? isActive)
+    public async Task<IActionResult> GetAll([FromQuery] string? search, [FromQuery] bool? isActive)
     {
-        var accounts = await _accountService.GetAllAsync(search, isActive);
+        var accounts = await _accountService.GetAllAsync(search ?? "", isActive);
         return Ok(accounts);
     }
 
