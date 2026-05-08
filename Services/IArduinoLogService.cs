@@ -43,9 +43,11 @@ namespace PowerGuardCoreApi.Services
                 {
                     var log = await LogEventAsync(new LogEventRequest
                     {
-                        CardUID = eventData.CardUID, Event = "card_on",
+                        CardUID = eventData.CardUID,
+                        Event = "card_on",
                         Details = $"Validation success for {result.FirstName} {result.LastName}",
-                        DeviceId = eventData.DeviceId, AccountId = result.AccountId
+                        DeviceId = eventData.DeviceId,
+                        AccountId = result.AccountId
                     });
                     return new { result.Success, result.Authorized, result.FirstName, result.LastName, result.AccountId, log };
                 }
@@ -62,9 +64,11 @@ namespace PowerGuardCoreApi.Services
                 {
                     var log = await LogEventAsync(new LogEventRequest
                     {
-                        CardUID = eventData.CardUID, Event = "card_off",
+                        CardUID = eventData.CardUID,
+                        Event = "card_off",
                         Details = $"Card removed for UID: {eventData.CardUID}",
-                        DeviceId = eventData.DeviceId, AccountId = last.AccountId
+                        DeviceId = eventData.DeviceId,
+                        AccountId = last.AccountId
                     });
                     return new { success = true, log };
                 }
@@ -200,9 +204,11 @@ namespace PowerGuardCoreApi.Services
 
             return new ValidateUidResult
             {
-                Success = true, Authorized = hasAccess,
+                Success = true,
+                Authorized = hasAccess,
                 AccountId = account.AccountId,
-                FirstName = account.FirstName, LastName = account.LastName,
+                FirstName = account.FirstName,
+                LastName = account.LastName,
                 Message = hasAccess ? "Access granted" : "Access denied - Not authorized for this room",
                 RoomAccess = hasAccess
             };
@@ -276,9 +282,14 @@ namespace PowerGuardCoreApi.Services
                 var acct = await _db.Accounts.FirstOrDefaultAsync(a => a.Uid == item.Uid);
                 result.Add(new BlockedUidDto
                 {
-                    Id = item.Id, Uid = item.Uid, RoomId = item.RoomId,
-                    RoomName = item.Room?.RoomName, RoomNumber = item.Room?.RoomNumber.ToString(),
-                    BlockedAt = item.BlockedAt, Reason = item.Reason, IsBlocked = item.IsBlocked,
+                    Id = item.Id,
+                    Uid = item.Uid,
+                    RoomId = item.RoomId,
+                    RoomName = item.Room?.RoomName,
+                    RoomNumber = item.Room?.RoomNumber.ToString(),
+                    BlockedAt = item.BlockedAt,
+                    Reason = item.Reason,
+                    IsBlocked = item.IsBlocked,
                     UserName = acct != null ? $"{acct.FirstName} {acct.LastName}" : "Unknown/Unregistered Card"
                 });
             }
