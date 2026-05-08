@@ -205,24 +205,25 @@ namespace PowerGuardCoreApi.Services
             var room = await _db.Rooms.FirstOrDefaultAsync(r => r.DeviceId == deviceId)
                 ?? throw new Exception("Room not found");
 
+            // Always update LastActiveAt when device checks in
+            room.LastActiveAt = DateTime.UtcNow;
+            room.UpdatedAt = DateTime.UtcNow;
+
             if (!room.IsActive)
             {
                 room.IsActive = true;
-                room.LastActiveAt = DateTime.UtcNow;
                 room.InactiveSince = null;
-                room.UpdatedAt = DateTime.UtcNow;
 
-                _db.ArduinoLogs.Add(new ArduinoLog 
-                { 
-                    RoomId = room.RoomId, 
-                    Event = "room_activated", 
-                    CardUID = "SYSTEM", 
-                    Details = "Device detected. Room reactivated automatically.", 
-                    Timestamp = DateTime.UtcNow 
+                _db.ArduinoLogs.Add(new ArduinoLog
+                {
+                    RoomId = room.RoomId,
+                    Event = "room_activated",
+                    CardUID = "SYSTEM",
+                    Details = "Device detected. Room reactivated automatically.",
+                    Timestamp = DateTime.UtcNow
                 });
-
-                await _db.SaveChangesAsync();
             }
+            await _db.SaveChangesAsync();
 
             return new PowerStatusDto { PowerStatus = room.PowerStatus, RoomId = room.RoomId, RoomName = room.RoomName };
         }
@@ -231,13 +232,15 @@ namespace PowerGuardCoreApi.Services
         {
             var rooms = await _db.Rooms.Where(r => r.DeviceId != null).ToListAsync();
             bool changed = false;
-            var result = rooms.Select(r => 
+            var result = rooms.Select(r =>
             {
                 if (CheckHeartbeat(r)) changed = true;
                 return new DeviceStatusDto
                 {
-                    RoomId = r.RoomId, RoomName = r.RoomName, DeviceId = r.DeviceId,
-                    IsActive = r.IsActive, 
+                    RoomId = r.RoomId,
+                    RoomName = r.RoomName,
+                    DeviceId = r.DeviceId,
+                    IsActive = r.IsActive,
                     LastSeen = r.LastActiveAt?.ToString("yyyy-MM-dd HH:mm:ss")
                 };
             }).ToList();
@@ -256,18 +259,18 @@ namespace PowerGuardCoreApi.Services
                 room.IsActive = false;
                 room.InactiveSince = DateTime.UtcNow;
                 room.PowerStatus = "off"; // Turn off power if device is lost or never found
-                
-                _db.ArduinoLogs.Add(new ArduinoLog 
-                { 
-                    RoomId = room.RoomId, 
-                    Event = "power_off", 
-                    CardUID = "SYSTEM", 
-                    Details = room.LastActiveAt.HasValue 
-                        ? "Device heartbeat lost. Room deactivated automatically." 
-                        : "No device detected. Room deactivated automatically.", 
-                    Timestamp = DateTime.UtcNow 
+
+                _db.ArduinoLogs.Add(new ArduinoLog
+                {
+                    RoomId = room.RoomId,
+                    Event = "power_off",
+                    CardUID = "SYSTEM",
+                    Details = room.LastActiveAt.HasValue
+                        ? "Device heartbeat lost. Room deactivated automatically."
+                        : "No device detected. Room deactivated automatically.",
+                    Timestamp = DateTime.UtcNow
                 });
-                
+
                 return true;
             }
             return false;

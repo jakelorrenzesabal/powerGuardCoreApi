@@ -116,7 +116,13 @@ namespace PowerGuardCoreApi.Controllers
         public async Task<IActionResult> GetPowerStatus([FromQuery] string deviceId)
         {
             var result = await _roomService.GetPowerStatusByDeviceIdAsync(deviceId);
-            return Ok(new { success = true, result.PowerStatus, result.RoomId, result.RoomName });
+            return Ok(new
+            {
+                success = true,
+                powerStatus = result.PowerStatus,
+                roomId = result.RoomId,
+                roomName = result.RoomName
+            });
         }
 
         [Authorize]

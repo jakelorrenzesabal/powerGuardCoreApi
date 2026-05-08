@@ -49,9 +49,9 @@ namespace PowerGuardCoreApi.Services
                         DeviceId = eventData.DeviceId,
                         AccountId = result.AccountId
                     });
-                    return new { result.Success, result.Authorized, result.FirstName, result.LastName, result.AccountId, log };
+                    return new { success = result.Success, authorized = result.Authorized, firstName = result.FirstName, lastName = result.LastName, accountId = result.AccountId };
                 }
-                return result;
+                return new { success = result.Success, authorized = result.Authorized, message = result.Message };
             }
 
             if (eventData.Event == "card_off" || eventData.Event == "CARD_REMOVED")
@@ -70,13 +70,13 @@ namespace PowerGuardCoreApi.Services
                         DeviceId = eventData.DeviceId,
                         AccountId = last.AccountId
                     });
-                    return new { success = true, log };
+                    return new { success = true };
                 }
-                return new { success = true, message = "Unauthorized card removed, no ArduinoLog created" };
+                return new { success = true, message = "Unauthorized card removed" };
             }
 
-            var logNormal = await LogEventAsync(eventData);
-            return new { success = true, log = logNormal };
+            await LogEventAsync(eventData);
+            return new { success = true };
         }
 
         public async Task<object> LogEventAsync(LogEventRequest logData)
