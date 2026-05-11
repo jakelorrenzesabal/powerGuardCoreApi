@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using PowerGuardCoreApi.Models;
+using PowerGuardCoreApi._Helpers;
 
 namespace PowerGuardCoreApi.Models
 {
@@ -68,6 +69,7 @@ namespace PowerGuardCoreApi.Models
 
         public static ArduinoLogDto FromLog(ArduinoLog log)
         {
+            var philippineTime = DateTimeHelper.ConvertToPhilippineTime(log.Timestamp);
             var dto = new ArduinoLogDto
             {
                 CardLogId = log.CardLogId,
@@ -77,7 +79,7 @@ namespace PowerGuardCoreApi.Models
                 CardUID = log.CardUID,
                 Event = log.Event,
                 Details = log.Details,
-                Timestamp = log.Timestamp.ToString("MM/dd/yyyy hh:mm tt")
+                Timestamp = philippineTime.ToString("MM/dd/yyyy hh:mm tt")
             };
 
             if (log.Room != null)
