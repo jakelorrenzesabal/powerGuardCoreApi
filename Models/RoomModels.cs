@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using PowerGuardCoreApi.Models;
+using PowerGuardCoreApi._Helpers;
 
 namespace PowerGuardCoreApi.Models
 {
@@ -114,7 +115,7 @@ namespace PowerGuardCoreApi.Models
             UserName = a.Account != null ? $"{a.Account.FirstName} {a.Account.LastName}" : null;
             Authorized = a.Authorized;
             Message = a.Message;
-            Timestamp = a.Timestamp;
+            Timestamp = DateTimeHelper.ConvertToPhilippineTime(a.Timestamp);
         }
     }
 }

@@ -466,16 +466,18 @@ namespace PowerGuardCoreApi.Services
             var logs = await query.OrderByDescending(a => a.Timestamp)
                 .Skip((filters.Page - 1) * filters.Limit)
                 .Take(filters.Limit)
-                .Select(a => new ActivityLogDto
-                {
-                    ActivityLogId = a.ActivityLogId,
-                    AccountId = a.AccountId,
-                    ActionType = a.ActionType,
-                    ActionDetails = a.ActionDetails,
-                    Timestamp = a.Timestamp
-                }).ToListAsync();
+                .ToListAsync();
 
-            return new { total, logs };
+            var logDtos = logs.Select(a => new ActivityLogDto
+            {
+                ActivityLogId = a.ActivityLogId,
+                AccountId = a.AccountId,
+                ActionType = a.ActionType,
+                ActionDetails = a.ActionDetails,
+                Timestamp = DateTimeHelper.ConvertToPhilippineTime(a.Timestamp)
+            }).ToList();
+
+            return new { total, logs = logDtos };
         }
 
         public async Task<object> GetAllActivityLogsAsync(ActivityLogFilterRequest filters)
@@ -498,16 +500,18 @@ namespace PowerGuardCoreApi.Services
             var logs = await query.OrderByDescending(a => a.Timestamp)
                 .Skip((filters.Page - 1) * filters.Limit)
                 .Take(filters.Limit)
-                .Select(a => new ActivityLogDto
-                {
-                    ActivityLogId = a.ActivityLogId,
-                    AccountId = a.AccountId,
-                    ActionType = a.ActionType,
-                    ActionDetails = a.ActionDetails,
-                    Timestamp = a.Timestamp
-                }).ToListAsync();
+                .ToListAsync();
 
-            return new { total, logs };
+            var logDtos = logs.Select(a => new ActivityLogDto
+            {
+                ActivityLogId = a.ActivityLogId,
+                AccountId = a.AccountId,
+                ActionType = a.ActionType,
+                ActionDetails = a.ActionDetails,
+                Timestamp = DateTimeHelper.ConvertToPhilippineTime(a.Timestamp)
+            }).ToList();
+
+            return new { total, logs = logDtos };
         }
 
         // ─── Helpers ─────────────────────────────────────────────────────────────
@@ -568,8 +572,8 @@ namespace PowerGuardCoreApi.Services
                 BranchId = account.BranchId,
                 IsActive = account.IsActive,
                 IsVerified = account.IsVerified,
-                Created = account.Created,
-                Updated = account.Updated,
+                Created = DateTimeHelper.ConvertToPhilippineTime(account.Created),
+                Updated = account.Updated.HasValue ? DateTimeHelper.ConvertToPhilippineTime(account.Updated.Value) : null,
                 Rooms = account.Rooms?.Select(r => new RoomDto { RoomId = r.RoomId, RoomName = r.RoomName }).ToList()
             };
         }
