@@ -64,7 +64,13 @@ namespace PowerGuardCoreApi.Models
         public string Role { get; set; } = "User";
         public string? Uid { get; set; }
         public int? BranchId { get; set; }
-        public List<int>? RoomIds { get; set; }
+        public List<RoomAssignmentRequest>? RoomAssignments { get; set; }
+    }
+
+    public class RoomAssignmentRequest
+    {
+        public int RoomId { get; set; }
+        public System.DateTime? ExpiryDate { get; set; }
     }
 
     public class UpdateAccountRequest
@@ -80,7 +86,7 @@ namespace PowerGuardCoreApi.Models
         public string? Uid { get; set; }
         public bool? IsActive { get; set; }
         public int? BranchId { get; set; }
-        public List<int>? RoomIds { get; set; }
+        public List<RoomAssignmentRequest>? RoomAssignments { get; set; }
     }
 
     public class UpdatePreferencesRequest
@@ -142,7 +148,15 @@ namespace PowerGuardCoreApi.Models
         public bool IsVerified { get; set; }
         public System.DateTime Created { get; set; }
         public System.DateTime? Updated { get; set; }
-        public List<RoomDto>? Rooms { get; set; }
+        public List<RoomAssignmentDto>? Rooms { get; set; }
+    }
+
+    public class RoomAssignmentDto
+    {
+        public int RoomId { get; set; }
+        public string RoomName { get; set; } = null!;
+        public int RoomNumber { get; set; }
+        public System.DateTime? ExpiryDate { get; set; }
     }
 
     public class ActivityLogDto

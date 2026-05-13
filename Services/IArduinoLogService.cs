@@ -83,9 +83,9 @@ namespace PowerGuardCoreApi.Services
         {
             Account? account = null;
             if (logData.AccountId.HasValue)
-                account = await _db.Accounts.Include(a => a.Rooms).FirstOrDefaultAsync(a => a.AccountId == logData.AccountId.Value);
+                account = await _db.Accounts.Include(a => a.AccountRooms).FirstOrDefaultAsync(a => a.AccountId == logData.AccountId.Value);
             else if (!string.IsNullOrEmpty(logData.CardUID))
-                account = await _db.Accounts.Include(a => a.Rooms).FirstOrDefaultAsync(a => a.Uid == logData.CardUID);
+                account = await _db.Accounts.Include(a => a.AccountRooms).FirstOrDefaultAsync(a => a.Uid == logData.CardUID);
 
             int? roomId = null;
             if (!string.IsNullOrEmpty(logData.DeviceId))
@@ -188,7 +188,7 @@ namespace PowerGuardCoreApi.Services
                 return new ValidateUidResult { Success = true, Authorized = false, Message = "Device key invalid" };
             }
 
-            var account = await _db.Accounts.Include(a => a.Rooms).FirstOrDefaultAsync(a => a.Uid == uid);
+            var account = await _db.Accounts.Include(a => a.AccountRooms).FirstOrDefaultAsync(a => a.Uid == uid);
             if (account == null)
             {
                 await AddAttemptAsync(uid, deviceId, room.RoomId, null, false, "Card not registered");
@@ -196,7 +196,8 @@ namespace PowerGuardCoreApi.Services
                 return new ValidateUidResult { Success = true, Authorized = false, Message = "Card not registered" };
             }
 
-            var hasAccess = account.Rooms.Any(r => r.RoomId == room.RoomId);
+            var assignment = account.AccountRooms.FirstOrDefault(ar => ar.RoomId == room.RoomId);
+            var hasAccess = assignment != null && (assignment.ExpiryDate == null || assignment.ExpiryDate > DateTime.UtcNow);
             await AddAttemptAsync(uid, deviceId, room.RoomId, account.AccountId, hasAccess,
                 hasAccess ? "Access granted" : "Access denied - Not authorized for this room");
 

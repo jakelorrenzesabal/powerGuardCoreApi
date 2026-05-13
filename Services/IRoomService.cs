@@ -64,8 +64,12 @@ namespace PowerGuardCoreApi.Services
             // Auto-authorize creator
             if (accountId > 0)
             {
-                var creator = await _db.Accounts.Include(a => a.Rooms).FirstOrDefaultAsync(a => a.AccountId == accountId);
-                if (creator != null) { creator.Rooms.Add(room); await _db.SaveChangesAsync(); }
+                var creator = await _db.Accounts.Include(a => a.AccountRooms).FirstOrDefaultAsync(a => a.AccountId == accountId);
+                if (creator != null) 
+                { 
+                    creator.AccountRooms.Add(new AccountRoom { AccountId = accountId, RoomId = room.RoomId }); 
+                    await _db.SaveChangesAsync(); 
+                }
             }
 
             return (room, plain);
@@ -75,7 +79,7 @@ namespace PowerGuardCoreApi.Services
         {
             var query = _db.Rooms.AsQueryable();
             if (accountId.HasValue)
-                query = query.Where(r => r.Accounts.Any(a => a.AccountId == accountId.Value));
+                query = query.Where(r => r.AccountRooms.Any(ar => ar.AccountId == accountId.Value));
 
             var rooms = await query.OrderBy(r => r.RoomName).ToListAsync();
             var count = await _db.Rooms.CountAsync();
@@ -122,7 +126,7 @@ namespace PowerGuardCoreApi.Services
                     }
                 }
 
-                dto.UserCount = await _db.Accounts.CountAsync(a => a.Rooms.Any(r => r.RoomId == room.RoomId));
+                dto.UserCount = await _db.AccountRooms.CountAsync(ar => ar.RoomId == room.RoomId);
                 dtos.Add(dto);
             }
 
@@ -302,7 +306,7 @@ namespace PowerGuardCoreApi.Services
         public async Task<object> GetRoomsByPowerStatusAsync(string status, int? accountId)
         {
             var q = _db.Rooms.AsQueryable();
-            if (accountId.HasValue) q = q.Where(r => r.Accounts.Any(a => a.AccountId == accountId.Value));
+            if (accountId.HasValue) q = q.Where(r => r.AccountRooms.Any(ar => ar.AccountId == accountId.Value));
             if (status == "on" || status == "off") q = q.Where(r => r.PowerStatus == status);
             var rooms = await q.OrderBy(r => r.RoomName).ToListAsync();
             return new { count = rooms.Count, rooms };

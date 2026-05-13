@@ -51,6 +51,7 @@ builder.Services.AddScoped<IRoomService, RoomService>();
 builder.Services.AddScoped<IArduinoLogService, ArduinoLogService>();
 builder.Services.AddScoped<IDeviceKeyHelper, DeviceKeyHelper>();
 builder.Services.AddScoped<IEmailSender, EmailSender>();
+builder.Services.AddHostedService<RoomExpiryWorker>();
 
 // ── Controllers ───────────────────────────────────────────────────────────────
 builder.Services.AddControllers()

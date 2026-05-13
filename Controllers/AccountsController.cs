@@ -123,11 +123,11 @@ public class AccountsController : ControllerBase
 
     [Authorize(Roles = UserRoles.Admin)]
     [HttpPost("{AccountId}/rooms/{roomId}")]
-    public async Task<IActionResult> AddRoomToAccount(int AccountId, int roomId)
+    public async Task<IActionResult> AddRoomToAccount(int AccountId, int roomId, [FromQuery] System.DateTime? expiryDate = null)
     {
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty;
         var browserInfo = Request.Headers["User-Agent"].ToString() ?? string.Empty;
-        await _accountService.AddRoomToAccountAsync(AccountId, roomId, ipAddress, browserInfo);
+        await _accountService.AddRoomToAccountAsync(AccountId, roomId, ipAddress, browserInfo, expiryDate);
         return Ok(new { message = "Room added to account successfully" });
     }
 

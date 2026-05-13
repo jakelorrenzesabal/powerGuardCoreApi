@@ -58,6 +58,6 @@ namespace PowerGuardCoreApi.Models
 
         // Navigation properties
         public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
-        public ICollection<Room> Rooms { get; set; } = new List<Room>();
+        public ICollection<AccountRoom> AccountRooms { get; set; } = new List<AccountRoom>();
     }
 }
