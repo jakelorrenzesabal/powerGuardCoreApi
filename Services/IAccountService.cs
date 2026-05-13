@@ -33,7 +33,7 @@ namespace PowerGuardCoreApi.Services
         Task UpdatePreferencesAsync(int accountId, UpdatePreferencesRequest request);
         Task<IEnumerable<AccountDto>> GetAccountsByRoomAsync(int roomId);
         Task<IEnumerable<AccountDto>> GetUnassignedAccountsAsync(int roomId, string? search);
-        Task AddRoomToAccountAsync(int accountId, int roomId, string ipAddress, string browserInfo);
+        Task AddRoomToAccountAsync(int accountId, int roomId, string ipAddress, string browserInfo, System.DateTime? expiryDate = null);
         Task RemoveRoomFromAccountAsync(int accountId, int roomId, string ipAddress, string browserInfo);
         Task<int> GetCountAsync();
         Task<object> GetAccountActivitiesAsync(int accountId, ActivityFilterRequest filters);
@@ -227,7 +227,7 @@ namespace PowerGuardCoreApi.Services
         {
             try
             {
-                var query = _db.Accounts.Include(a => a.Rooms).AsQueryable();
+                var query = _db.Accounts.Include(a => a.AccountRooms).ThenInclude(ar => ar.Room).AsQueryable();
 
                 if (isActive.HasValue)
                     query = query.Where(a => a.IsActive == isActive.Value);
@@ -257,7 +257,7 @@ namespace PowerGuardCoreApi.Services
         public async Task<AccountDto> GetByIdAsync(int accountId)
         {
             var account = await _db.Accounts
-                .Include(a => a.Rooms)
+                .Include(a => a.AccountRooms).ThenInclude(ar => ar.Room)
                 .FirstOrDefaultAsync(a => a.AccountId == accountId);
 
             if (account == null) throw new AppException("Account not found");
@@ -293,6 +293,20 @@ namespace PowerGuardCoreApi.Services
             _db.Accounts.Add(account);
             await _db.SaveChangesAsync();
 
+            if (request.RoomAssignments != null && request.RoomAssignments.Any())
+            {
+                foreach (var assignment in request.RoomAssignments)
+                {
+                    account.AccountRooms.Add(new AccountRoom
+                    {
+                        AccountId = account.AccountId,
+                        RoomId = assignment.RoomId,
+                        ExpiryDate = assignment.ExpiryDate
+                    });
+                }
+                await _db.SaveChangesAsync();
+            }
+
             _db.Preferences.Add(new Preferences { AccountId = account.AccountId });
             await _db.SaveChangesAsync();
 
@@ -306,7 +320,7 @@ namespace PowerGuardCoreApi.Services
 
         public async Task<AccountDto> UpdateAsync(int accountId, UpdateAccountRequest request, string ipAddress, string browserInfo, string requesterRole, int requesterId)
         {
-            var account = await _db.Accounts.Include(a => a.Rooms)
+            var account = await _db.Accounts.Include(a => a.AccountRooms).ThenInclude(ar => ar.Room)
                 .FirstOrDefaultAsync(a => a.AccountId == accountId);
             if (account == null) throw new AppException("Account not found");
 
@@ -328,6 +342,20 @@ namespace PowerGuardCoreApi.Services
                 account.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
             if (request.IsActive.HasValue) account.IsActive = request.IsActive.Value;
             if (request.Role != null && requesterRole == "Admin") account.Role = request.Role;
+
+            if (request.RoomAssignments != null)
+            {
+                account.AccountRooms.Clear();
+                foreach (var assignment in request.RoomAssignments)
+                {
+                    account.AccountRooms.Add(new AccountRoom
+                    {
+                        AccountId = account.AccountId,
+                        RoomId = assignment.RoomId,
+                        ExpiryDate = assignment.ExpiryDate
+                    });
+                }
+            }
 
             account.Updated = DateTime.UtcNow;
             await _db.SaveChangesAsync();
@@ -388,8 +416,8 @@ namespace PowerGuardCoreApi.Services
         public async Task<IEnumerable<AccountDto>> GetAccountsByRoomAsync(int roomId)
         {
             var accounts = await _db.Accounts
-                .Include(a => a.Rooms)
-                .Where(a => a.Rooms.Any(r => r.RoomId == roomId))
+                .Include(a => a.AccountRooms).ThenInclude(ar => ar.Room)
+                .Where(a => a.AccountRooms.Any(ar => ar.RoomId == roomId))
                 .ToListAsync();
             return accounts.Select(MapToDto);
         }
@@ -397,8 +425,8 @@ namespace PowerGuardCoreApi.Services
         public async Task<IEnumerable<AccountDto>> GetUnassignedAccountsAsync(int roomId, string? search)
         {
             var query = _db.Accounts
-                .Include(a => a.Rooms)
-                .Where(a => !a.Rooms.Any(r => r.RoomId == roomId) && a.IsActive);
+                .Include(a => a.AccountRooms)
+                .Where(a => !a.AccountRooms.Any(ar => ar.RoomId == roomId) && a.IsActive);
 
             if (!string.IsNullOrEmpty(search))
                 query = query.Where(a => a.FirstName.Contains(search) || a.LastName.Contains(search) || a.Email.Contains(search));
@@ -407,35 +435,46 @@ namespace PowerGuardCoreApi.Services
             return accounts.Select(MapToDto);
         }
 
-        public async Task AddRoomToAccountAsync(int accountId, int roomId, string ipAddress, string browserInfo)
+        public async Task AddRoomToAccountAsync(int accountId, int roomId, string ipAddress, string browserInfo, System.DateTime? expiryDate = null)
         {
-            var account = await _db.Accounts.Include(a => a.Rooms)
+            var account = await _db.Accounts.Include(a => a.AccountRooms)
                 .FirstOrDefaultAsync(a => a.AccountId == accountId);
             if (account == null) throw new AppException("Account not found");
 
             var room = await _db.Rooms.FindAsync(roomId);
             if (room == null) throw new AppException("Room not found");
 
-            if (!account.Rooms.Any(r => r.RoomId == roomId))
+            var assignment = account.AccountRooms.FirstOrDefault(ar => ar.RoomId == roomId);
+            if (assignment == null)
             {
-                account.Rooms.Add(room);
-                await _db.SaveChangesAsync();
+                account.AccountRooms.Add(new AccountRoom
+                {
+                    AccountId = accountId,
+                    RoomId = roomId,
+                    ExpiryDate = expiryDate
+                });
+            }
+            else
+            {
+                assignment.ExpiryDate = expiryDate;
             }
 
+            await _db.SaveChangesAsync();
+
             await LogActivityAsync(accountId, "room_added", ipAddress, browserInfo,
-                $"Room '{room.RoomName}' added to account {account.Email}");
+                $"Room '{room.RoomName}' added to account {account.Email} (Expiry: {expiryDate?.ToString() ?? "Permanent"})");
         }
 
         public async Task RemoveRoomFromAccountAsync(int accountId, int roomId, string ipAddress, string browserInfo)
         {
-            var account = await _db.Accounts.Include(a => a.Rooms)
+            var account = await _db.Accounts.Include(a => a.AccountRooms)
                 .FirstOrDefaultAsync(a => a.AccountId == accountId);
             if (account == null) throw new AppException("Account not found");
 
-            var room = account.Rooms.FirstOrDefault(r => r.RoomId == roomId);
-            if (room != null)
+            var assignment = account.AccountRooms.FirstOrDefault(ar => ar.RoomId == roomId);
+            if (assignment != null)
             {
-                account.Rooms.Remove(room);
+                account.AccountRooms.Remove(assignment);
                 await _db.SaveChangesAsync();
             }
 
@@ -574,7 +613,13 @@ namespace PowerGuardCoreApi.Services
                 IsVerified = account.IsVerified,
                 Created = DateTimeHelper.ConvertToPhilippineTime(account.Created),
                 Updated = account.Updated.HasValue ? DateTimeHelper.ConvertToPhilippineTime(account.Updated.Value) : null,
-                Rooms = account.Rooms?.Select(r => new RoomDto { RoomId = r.RoomId, RoomName = r.RoomName }).ToList()
+                Rooms = account.AccountRooms?.Select(ar => new RoomAssignmentDto
+                {
+                    RoomId = ar.RoomId,
+                    RoomName = ar.Room.RoomName,
+                    RoomNumber = ar.Room.RoomNumber,
+                    ExpiryDate = ar.ExpiryDate.HasValue ? DateTimeHelper.ConvertToPhilippineTime(ar.ExpiryDate.Value) : null
+                }).ToList()
             };
         }
 

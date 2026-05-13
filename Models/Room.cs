@@ -46,6 +46,6 @@ namespace PowerGuardCoreApi.Models
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
         // Navigation properties
-        public ICollection<Account> Accounts { get; set; } = new List<Account>();
+        public ICollection<AccountRoom> AccountRooms { get; set; } = new List<AccountRoom>();
     }
 }

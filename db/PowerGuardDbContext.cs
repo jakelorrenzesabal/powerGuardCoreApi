@@ -11,6 +11,7 @@ public class PowerGuardDbContext : DbContext
     public DbSet<ValidationAttempt> ValidationAttempts { get; set; }
     public DbSet<BlockedUid> BlockedUids { get; set; }
     public DbSet<Preferences> Preferences { get; set; }
+    public DbSet<AccountRoom> AccountRooms { get; set; }
 
     public PowerGuardDbContext(DbContextOptions<PowerGuardDbContext> options) : base(options) { }
 
@@ -25,11 +26,19 @@ public class PowerGuardDbContext : DbContext
             .HasForeignKey(rt => rt.AccountId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Account ↔ Room (many-to-many via join table)
-        modelBuilder.Entity<Account>()
-            .HasMany(a => a.Rooms)
-            .WithMany(r => r.Accounts)
-            .UsingEntity(j => j.ToTable("AccountRooms"));
+        // Account ↔ Room (many-to-many via explicit join table)
+        modelBuilder.Entity<AccountRoom>()
+            .HasKey(ar => new { ar.AccountId, ar.RoomId });
+
+        modelBuilder.Entity<AccountRoom>()
+            .HasOne(ar => ar.Account)
+            .WithMany(a => a.AccountRooms)
+            .HasForeignKey(ar => ar.AccountId);
+
+        modelBuilder.Entity<AccountRoom>()
+            .HasOne(ar => ar.Room)
+            .WithMany(r => r.AccountRooms)
+            .HasForeignKey(ar => ar.RoomId);
 
         // Unique index on Room.DeviceId
         modelBuilder.Entity<Room>()
