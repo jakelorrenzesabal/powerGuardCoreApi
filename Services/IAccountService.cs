@@ -293,6 +293,16 @@ namespace PowerGuardCoreApi.Services
             _db.Accounts.Add(account);
             await _db.SaveChangesAsync();
 
+            if (request.RoomIds != null && request.RoomIds.Any())
+            {
+                var rooms = await _db.Rooms.Where(r => request.RoomIds.Contains(r.RoomId)).ToListAsync();
+                foreach (var room in rooms)
+                {
+                    account.Rooms.Add(room);
+                }
+                await _db.SaveChangesAsync();
+            }
+
             _db.Preferences.Add(new Preferences { AccountId = account.AccountId });
             await _db.SaveChangesAsync();
 
@@ -328,6 +338,19 @@ namespace PowerGuardCoreApi.Services
                 account.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
             if (request.IsActive.HasValue) account.IsActive = request.IsActive.Value;
             if (request.Role != null && requesterRole == "Admin") account.Role = request.Role;
+
+            if (request.RoomIds != null)
+            {
+                account.Rooms.Clear();
+                if (request.RoomIds.Any())
+                {
+                    var rooms = await _db.Rooms.Where(r => request.RoomIds.Contains(r.RoomId)).ToListAsync();
+                    foreach (var room in rooms)
+                    {
+                        account.Rooms.Add(room);
+                    }
+                }
+            }
 
             account.Updated = DateTime.UtcNow;
             await _db.SaveChangesAsync();

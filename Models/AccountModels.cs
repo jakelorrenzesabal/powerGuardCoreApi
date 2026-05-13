@@ -64,6 +64,7 @@ namespace PowerGuardCoreApi.Models
         public string Role { get; set; } = "User";
         public string? Uid { get; set; }
         public int? BranchId { get; set; }
+        public List<int>? RoomIds { get; set; }
     }
 
     public class UpdateAccountRequest
@@ -79,6 +80,7 @@ namespace PowerGuardCoreApi.Models
         public string? Uid { get; set; }
         public bool? IsActive { get; set; }
         public int? BranchId { get; set; }
+        public List<int>? RoomIds { get; set; }
     }
 
     public class UpdatePreferencesRequest
