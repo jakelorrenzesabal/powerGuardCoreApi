@@ -49,7 +49,7 @@ namespace PowerGuardCoreApi.Services
                                 {
                                     AccountId = access.AccountId,
                                     ActionType = "room_expired",
-                                    ActionDetails = $"Access to Room '{access.Room?.RoomName}' has expired for user {access.Account?.Email}. (Expiry: {access.ExpiryDate})",
+                                    ActionDetails = $"Access to Room '{access.Room?.RoomName}' has expired for user {access.Account?.Email}.",
                                     Timestamp = DateTime.UtcNow
                                 });
                             }

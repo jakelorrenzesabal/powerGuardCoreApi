@@ -78,8 +78,8 @@ namespace PowerGuardCoreApi.Services
         public async Task<(IEnumerable<RoomDto> rooms, int count)> GetAllRoomsAsync(int? accountId)
         {
             var query = _db.Rooms.AsQueryable();
-            if (accountId.HasValue)
-                query = query.Where(r => r.AccountRooms.Any(ar => ar.AccountId == accountId.Value));
+            // Note: We don't filter the query by accountId here because we want to see ALL rooms (authorized or not)
+            // for the "Request Access" workflow to work.
 
             var rooms = await query.OrderBy(r => r.RoomName).ToListAsync();
             var count = await _db.Rooms.CountAsync();
@@ -127,6 +127,17 @@ namespace PowerGuardCoreApi.Services
                 }
 
                 dto.UserCount = await _db.AccountRooms.CountAsync(ar => ar.RoomId == room.RoomId);
+                
+                // Set IsAuthorized for the current user
+                if (accountId.HasValue)
+                {
+                    dto.IsAuthorized = await _db.AccountRooms.AnyAsync(ar => ar.RoomId == room.RoomId && ar.AccountId == accountId.Value);
+                }
+                else
+                {
+                    dto.IsAuthorized = false;
+                }
+
                 dtos.Add(dto);
             }
 
