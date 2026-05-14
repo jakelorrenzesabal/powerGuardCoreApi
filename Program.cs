@@ -48,6 +48,7 @@ builder.Services.AddCors(opt =>
 // ── Services (DI) ─────────────────────────────────────────────────────────────
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IRoomService, RoomService>();
+builder.Services.AddScoped<IAccessRequestService, AccessRequestService>();
 builder.Services.AddScoped<IArduinoLogService, ArduinoLogService>();
 builder.Services.AddScoped<IDeviceKeyHelper, DeviceKeyHelper>();
 builder.Services.AddScoped<IEmailSender, EmailSender>();

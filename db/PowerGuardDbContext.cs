@@ -12,6 +12,7 @@ public class PowerGuardDbContext : DbContext
     public DbSet<BlockedUid> BlockedUids { get; set; }
     public DbSet<Preferences> Preferences { get; set; }
     public DbSet<AccountRoom> AccountRooms { get; set; }
+    public DbSet<RoomAccessRequest> RoomAccessRequests { get; set; }
 
     public PowerGuardDbContext(DbContextOptions<PowerGuardDbContext> options) : base(options) { }
 
@@ -61,6 +62,19 @@ public class PowerGuardDbContext : DbContext
             .HasOne(p => p.Account)
             .WithOne()
             .HasForeignKey<Preferences>(p => p.AccountId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // RoomAccessRequest relationships
+        modelBuilder.Entity<RoomAccessRequest>()
+            .HasOne(r => r.Account)
+            .WithMany()
+            .HasForeignKey(r => r.AccountId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<RoomAccessRequest>()
+            .HasOne(r => r.Room)
+            .WithMany()
+            .HasForeignKey(r => r.RoomId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

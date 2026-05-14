@@ -467,19 +467,20 @@ namespace PowerGuardCoreApi.Services
 
         public async Task RemoveRoomFromAccountAsync(int accountId, int roomId, string ipAddress, string browserInfo)
         {
-            var account = await _db.Accounts.Include(a => a.AccountRooms)
+            var account = await _db.Accounts.Include(a => a.AccountRooms).ThenInclude(ar => ar.Room)
                 .FirstOrDefaultAsync(a => a.AccountId == accountId);
             if (account == null) throw new AppException("Account not found");
 
             var assignment = account.AccountRooms.FirstOrDefault(ar => ar.RoomId == roomId);
             if (assignment != null)
             {
+                var roomName = assignment.Room?.RoomName ?? "Unknown";
                 account.AccountRooms.Remove(assignment);
                 await _db.SaveChangesAsync();
-            }
 
-            await LogActivityAsync(accountId, "room_removed", ipAddress, browserInfo,
-                $"Room (ID:{roomId}) removed from account {account.Email}");
+                await LogActivityAsync(accountId, "room_removed", ipAddress, browserInfo,
+                    $"Access to Room '{roomName}' was unselected/removed for user {account.Email}");
+            }
         }
 
         // ─── Counts & Logs ───────────────────────────────────────────────────────
