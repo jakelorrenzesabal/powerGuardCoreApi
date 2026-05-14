@@ -34,12 +34,26 @@ namespace PowerGuardCoreApi.Services
                         var db = scope.ServiceProvider.GetRequiredService<PowerGuardDbContext>();
                         
                         var expiredAccess = await db.AccountRooms
+                            .Include(ar => ar.Account)
+                            .Include(ar => ar.Room)
                             .Where(ar => ar.ExpiryDate != null && ar.ExpiryDate < DateTime.UtcNow)
                             .ToListAsync();
 
                         if (expiredAccess.Any())
                         {
                             _logger.LogInformation($"Removing {expiredAccess.Count} expired room access records.");
+
+                            foreach (var access in expiredAccess)
+                            {
+                                db.ActivityLogs.Add(new ActivityLog
+                                {
+                                    AccountId = access.AccountId,
+                                    ActionType = "room_expired",
+                                    ActionDetails = $"Access to Room '{access.Room?.RoomName}' has expired for user {access.Account?.Email}. (Expiry: {access.ExpiryDate})",
+                                    Timestamp = DateTime.UtcNow
+                                });
+                            }
+
                             db.AccountRooms.RemoveRange(expiredAccess);
                             await db.SaveChangesAsync();
                         }
