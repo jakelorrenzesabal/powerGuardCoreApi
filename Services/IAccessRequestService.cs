@@ -32,6 +32,10 @@ namespace PowerGuardCoreApi.Services
             var room = await _db.Rooms.FindAsync(request.RoomId);
             if (room == null) throw new Exception("Room not found");
 
+            var existingPending = await _db.RoomAccessRequests
+                .AnyAsync(r => r.AccountId == accountId && r.RoomId == request.RoomId && r.Status == "Pending");
+            if (existingPending) throw new AppException("You already have a pending request for this room");
+
             // The RequestedExpiryDate comes from the frontend datetime-local input, which is
             // in Philippine local time (UTC+8). We must convert it to UTC before storing.
             DateTime? expiryUtc = null;
