@@ -32,6 +32,10 @@ namespace PowerGuardCoreApi.Services
             var room = await _db.Rooms.FindAsync(request.RoomId);
             if (room == null) throw new Exception("Room not found");
 
+            var existingPending = await _db.RoomAccessRequests
+                .AnyAsync(r => r.AccountId == accountId && r.RoomId == request.RoomId && r.Status == "Pending");
+            if (existingPending) throw new AppException("You already have a pending request for this room");
+
             // The RequestedExpiryDate comes from the frontend datetime-local input, which is
             // in Philippine local time (UTC+8). We must convert it to UTC before storing.
             DateTime? expiryUtc = null;
@@ -40,6 +44,11 @@ namespace PowerGuardCoreApi.Services
                 expiryUtc = DateTimeHelper.ConvertToUtc(
                     DateTime.SpecifyKind(request.RequestedExpiryDate.Value, DateTimeKind.Unspecified)
                 );
+                
+                if (expiryUtc <= DateTime.UtcNow)
+                {
+                    throw new AppException("Requested expiry date must be in the future");
+                }
             }
 
             var accessRequest = new RoomAccessRequest
@@ -77,6 +86,20 @@ namespace PowerGuardCoreApi.Services
                 query = query.Where(r => r.Status == status);
 
             var requests = await query.OrderByDescending(r => r.CreatedAt).ToListAsync();
+            
+            // Auto-expire past pending requests
+            var hasChanges = false;
+            foreach (var req in requests)
+            {
+                if (req.Status == "Pending" && req.RequestedExpiryDate.HasValue && req.RequestedExpiryDate.Value <= DateTime.UtcNow)
+                {
+                    req.Status = "Expired";
+                    req.UpdatedAt = DateTime.UtcNow;
+                    hasChanges = true;
+                }
+            }
+            if (hasChanges) await _db.SaveChangesAsync();
+
             return requests.Select(r => new AccessRequestDto(r));
         }
 
@@ -88,6 +111,19 @@ namespace PowerGuardCoreApi.Services
                 .Where(r => r.AccountId == accountId)
                 .OrderByDescending(r => r.CreatedAt)
                 .ToListAsync();
+
+            // Auto-expire past pending requests
+            var hasChanges = false;
+            foreach (var req in requests)
+            {
+                if (req.Status == "Pending" && req.RequestedExpiryDate.HasValue && req.RequestedExpiryDate.Value <= DateTime.UtcNow)
+                {
+                    req.Status = "Expired";
+                    req.UpdatedAt = DateTime.UtcNow;
+                    hasChanges = true;
+                }
+            }
+            if (hasChanges) await _db.SaveChangesAsync();
 
             return requests.Select(r => new AccessRequestDto(r));
         }
