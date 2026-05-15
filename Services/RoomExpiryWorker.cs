@@ -59,7 +59,7 @@ namespace PowerGuardCoreApi.Services
                                     db.ArduinoLogs.Add(new ArduinoLog
                                     {
                                         RoomId = access.RoomId,
-                                        Event = "deactivated",
+                                        Event = "ExpiredAccess_off",
                                         CardUID = "SYSTEM",
                                         Details = $"Room powered off automatically due to expired access for user {access.Account?.Email}.",
                                         Timestamp = DateTime.UtcNow
