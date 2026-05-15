@@ -301,7 +301,7 @@ namespace PowerGuardCoreApi.Services
                 _db.ArduinoLogs.Add(new ArduinoLog
                 {
                     RoomId = room.RoomId,
-                    Event = "power_off",
+                    Event = "deactivated",
                     CardUID = "SYSTEM",
                     Details = room.LastActiveAt.HasValue
                         ? "Device heartbeat lost. Room deactivated automatically."
