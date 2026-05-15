@@ -52,6 +52,19 @@ namespace PowerGuardCoreApi.Services
                                     ActionDetails = $"Access to Room '{access.Room?.RoomName}' has expired for user {access.Account?.Email}.",
                                     Timestamp = DateTime.UtcNow
                                 });
+
+                                if (access.Room != null && access.Room.PowerStatus == "on")
+                                {
+                                    access.Room.PowerStatus = "off";
+                                    db.ArduinoLogs.Add(new ArduinoLog
+                                    {
+                                        RoomId = access.RoomId,
+                                        Event = "deactivated",
+                                        CardUID = "SYSTEM",
+                                        Details = $"Room powered off automatically due to expired access for user {access.Account?.Email}.",
+                                        Timestamp = DateTime.UtcNow
+                                    });
+                                }
                             }
 
                             db.AccountRooms.RemoveRange(expiredAccess);
